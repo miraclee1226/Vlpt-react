@@ -1,29 +1,20 @@
-import React, { useState, useRef } from 'react';
-import Hello from './Hello';
-import InputSample from './InputSample';
+import React, { useReducer, useRef, useState, useMemo, useCallback } from 'react';
 import UserList from './UserList';
 import CreateUser from './CreateUser';
+import useInputs from './useInputs';
+
 
 function countActiveUsers(users) {
   console.log('활성 사용자 수를 세는중...');
-  return users.filter(user => user.active).lenght;
+  return users.filter(user => user.active).length;
 }
 
-function App() {
-  const [inputs, setInputs] = useState({
-    username: '',
-    email: ''
-  });
-  const { username, email } = inputs;
-  const onChange = e => {
-    const { name, value } = e.target;
-    setInputs({
-      ...inputs,
-      [name]: value
-    });
-  };
-
-  const [users, setUsers] = useState([
+  const initialState= {
+    inputs: {
+      username: '',
+      email: ''
+    },
+    users: [
     {
       id: 1,
       username: 'velopert',
@@ -42,52 +33,49 @@ function App() {
       email: 'liz@example.com',
       active: false
     }
-  ]);
+  ]
+};
 
-  const nextId = useRef(4);
-  const onCreate = () => {
-    const user = {
-      id: nextId.current,
-      username,
-      email
+function reducer(state, action) {
+  switch (action.type) {
+    case 'CREATE_USER':
+     return {
+      users: state.users.concat(action.user)
     };
+    case 'TOGGLE_USER':
+      return {
+        users: state.users.map(user=> 
+          user.id === action.id ? { ...user, active: !user.active} : user
+          )
+        }; 
+    case 'REMOVE_USER':
+      return {
+        users: state.users.filter(user => user.id !== !action.id)
+      };
+      default:
+        return state;
+  }
+}
+
+// UserDispatch 라는 이름으로 내보내줌
+export const UserDispatch = React.createContext(null);
+
+function App() {
+
+  const [state, dispatch] = useReducer(reducer, initialState);
   
-    setUsers([...users, user]);
+  const { users } = state;
 
-    setInputs({
-      username: '',
-      email: ''
-    });
-    nextId.current += 1;
-
-  };
-
-  const onRemove = id => {
-    // user.id 가 파라미터로 일치하지 않는 원소만 추출해서 새로운 배열을 만듬
-    // = user.id 가 id 인 것을 제거함
-    setUsers(users.filter(user => user.id !== id));
+  const count = useMemo(()=> countActiveUsers(users), [users]);
+  return (
+    <UserDispatch.Provider value={dispatch}>
+      <CreateUser />
+      <UserList users={users} />
+      <div>활성사용자 수 : {count}</div>
+    </UserDispatch.Provider>
+  )
   }
 
-  const onToggle = id => {
-    setUsers(
-      users.map ( user => 
-        user.id === id ? {...user, active: !user.active} : user
-        )
-        )
-      }
-  const count = countActiveUsers(users);
-  return (
-    <>
-      <CreateUser 
-        username={username}
-        email={email}
-        onChange={onChange}
-        onCreate={onCreate}
-      />
-      <UserList users={users} onRemove={onRemove} onToggle ={onToggle} />
-      <div>활성사용자 수 : {count}</div>
-    </>
-  );
-}
+
 
 export default App;
